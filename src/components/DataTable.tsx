@@ -135,7 +135,7 @@ const DataTable: React.FC = () => {
             title: '问题',
             dataIndex: 'question',
             key: 'question',
-            width: '5%',
+            width: '15%',
             render: (text: string, record: DataItem) => (
                 <TextArea
                     value={text}
@@ -148,7 +148,7 @@ const DataTable: React.FC = () => {
             title: '答案',
             dataIndex: 'answer',
             key: 'answer',
-            width: '5%',
+            width: '15%',
             render: (text: string, record: DataItem) => (
                 <TextArea
                     value={text}
@@ -161,7 +161,7 @@ const DataTable: React.FC = () => {
             title: '原文',
             dataIndex: 'chunk_texts',
             key: 'chunk_texts',
-            width: '85%',
+            width: '65%',
             render: (text: string) => (
                 <div style={{
                     padding: '8px',
@@ -222,7 +222,7 @@ const DataTable: React.FC = () => {
                     showSizeChanger: true,
                     showTotal: (total) => `共 ${total} 条数据`
                 }}
-                scroll={{ x: 'max-content' }}
+                scroll={{ x: 2000 }}
             />
         ),
     }));
