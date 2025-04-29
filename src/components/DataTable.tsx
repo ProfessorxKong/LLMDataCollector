@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { Tabs, Table, Input, Button, message } from 'antd';
 import type { TabsProps } from 'antd';
 import { DataContext } from '../App';
@@ -22,7 +22,11 @@ interface DataItem {
     chunk_texts: string | string[];
     document?: string;
     question_type?: string;
-    status?: string;
+    status?: 'correct' | 'incorrect';
+}
+
+interface SavedData {
+    [key: string]: DataItem;
 }
 
 // interface RawDataItem {
@@ -78,31 +82,160 @@ const DataTable: React.FC = () => {
         pageSize: 10,
     });
 
+    // 使用 useRef 来存储定时器
+    const timerRef = useRef<number>();
+
+    // 创建防抖的更新函数
+    const debouncedUpdate = useCallback((newData: DataItem[]) => {
+        if (timerRef.current) {
+            clearTimeout(timerRef.current);
+        }
+        timerRef.current = window.setTimeout(() => {
+            console.log('防抖更新触发，准备保存数据');
+            dispatch({ type: 'UPDATE_DATA', payload: newData });
+
+            // 保存到 localStorage
+            try {
+                const savedData: SavedData = {};
+                newData.forEach(item => {
+                    const uniqueKey = generateUniqueKey(item);
+                    savedData[uniqueKey] = {
+                        document_id: item.document_id,
+                        domain: item.domain,
+                        question: item.question,
+                        answer: item.answer,
+                        chunk_texts: item.chunk_texts,
+                        document: item.document,
+                        question_type: item.question_type,
+                        status: item.status
+                    };
+                });
+                console.log('准备保存的数据:', savedData);
+                const dataToSave = JSON.stringify(savedData);
+                console.log('序列化后的数据:', dataToSave);
+                localStorage.setItem('savedTableData', dataToSave);
+                console.log('数据已自动保存到 localStorage');
+
+                // 验证保存是否成功
+                const savedDataCheck = localStorage.getItem('savedTableData');
+                console.log('从 localStorage 读取的数据:', savedDataCheck);
+                if (savedDataCheck === dataToSave) {
+                    console.log('数据保存验证成功');
+                } else {
+                    console.error('数据保存验证失败');
+                }
+            } catch (error) {
+                console.error('自动保存到 localStorage 失败:', error);
+            }
+        }, 3000);
+    }, [dispatch]);
+
+    // 清理定时器
+    useEffect(() => {
+        return () => {
+            if (timerRef.current) {
+                clearTimeout(timerRef.current);
+            }
+        };
+    }, []);
+
     // 从 JSON 文件获取数据
     const { data: jsonData } = useRequest(() => {
         return Promise.resolve(readingData);
     });
 
+    // 从 localStorage 读取保存的数据
+    const loadSavedData = (): SavedData => {
+        try {
+            const savedData = localStorage.getItem('savedTableData');
+            if (savedData) {
+                return JSON.parse(savedData);
+            }
+        } catch (error) {
+            console.error('读取 localStorage 数据失败:', error);
+        }
+        return {};
+    };
+
+    // 生成唯一标识符
+    const generateUniqueKey = (item: DataItem) => {
+        return `${item.document_id}-${item.question}-${item.answer}`;
+    };
+
+    // 修改保存到本地的处理函数
+    const handleSaveToStorage = () => {
+        console.log('开始保存数据到 localStorage');
+        try {
+            const savedData: SavedData = {};
+            state.data.forEach(item => {
+                const uniqueKey = generateUniqueKey(item);
+                savedData[uniqueKey] = {
+                    document_id: item.document_id,
+                    domain: item.domain,
+                    question: item.question,
+                    answer: item.answer,
+                    chunk_texts: item.chunk_texts,
+                    document: item.document,
+                    question_type: item.question_type,
+                    status: item.status
+                };
+            });
+            console.log('准备保存的数据:', savedData);
+            const dataToSave = JSON.stringify(savedData);
+            console.log('序列化后的数据:', dataToSave);
+            localStorage.setItem('savedTableData', dataToSave);
+            console.log('数据已保存到 localStorage');
+
+            // 验证保存是否成功
+            const savedDataCheck = localStorage.getItem('savedTableData');
+            console.log('从 localStorage 读取的数据:', savedDataCheck);
+            if (savedDataCheck === dataToSave) {
+                message.success('数据已成功保存到本地存储');
+            } else {
+                throw new Error('数据保存验证失败');
+            }
+        } catch (error) {
+            console.error('保存到 localStorage 失败:', error);
+            message.error('保存数据失败，请重试');
+        }
+    };
+
     useEffect(() => {
+        console.log('开始加载数据');
         if (jsonData) {
-            console.log('准备更新到 state 的数据:', jsonData);
-            console.log('数据总条数:', jsonData.length);
-            dispatch({ type: 'FETCH_SUCCESS', payload: jsonData });
-            // 设置默认选中的 tab
-            if (jsonData.length > 0) {
-                setActiveKey(jsonData[0].domain);
+            console.log('原始数据:', jsonData);
+            const savedData = loadSavedData();
+            console.log('从 localStorage 加载的数据:', savedData);
+
+            // 合并原始数据和保存的数据
+            const mergedData = jsonData.map((item: DataItem) => {
+                const uniqueKey = generateUniqueKey(item);
+                const savedItem = savedData[uniqueKey];
+                if (savedItem) {
+                    console.log('找到保存的数据:', uniqueKey, savedItem);
+                    // 确保合并所有字段
+                    return {
+                        ...item,
+                        question: savedItem.question || item.question,
+                        answer: savedItem.answer || item.answer,
+                        status: savedItem.status || item.status,
+                        document: savedItem.document || item.document,
+                        question_type: savedItem.question_type || item.question_type
+                    };
+                }
+                return item;
+            });
+            console.log('合并后的数据:', mergedData);
+
+            dispatch({ type: 'FETCH_SUCCESS', payload: mergedData });
+            if (mergedData.length > 0) {
+                setActiveKey(mergedData[0].domain);
             }
         }
     }, [jsonData, dispatch]);
 
     // 获取所有唯一的 domain
     const domains = Array.from(new Set(state.data.map((item: DataItem) => item.domain)));
-    console.log('当前 domains:', domains);
-    console.log('当前 state.data 总条数:', state.data.length);
-    console.log('每个 domain 的数据条数:', domains.map(domain => ({
-        domain,
-        count: state.data.filter((item: DataItem) => item.domain === domain).length
-    })));
 
     // 表格列定义
     const columns = [
@@ -113,9 +246,17 @@ const DataTable: React.FC = () => {
             width: '10%',
             render: (text: string, record: DataItem) => (
                 <TextArea
-                    value={text}
-                    onChange={(e) => handleEdit(record.document_id, 'question', e.target.value)}
+                    defaultValue={text}
                     autoSize
+                    onChange={(e) => {
+                        const newData = state.data.map((item: DataItem) => {
+                            if (generateUniqueKey(item) === generateUniqueKey(record)) {
+                                return { ...item, question: e.target.value };
+                            }
+                            return item;
+                        });
+                        debouncedUpdate(newData);
+                    }}
                 />
             ),
         },
@@ -126,9 +267,17 @@ const DataTable: React.FC = () => {
             width: '20%',
             render: (text: string, record: DataItem) => (
                 <TextArea
-                    value={text}
-                    onChange={(e) => handleEdit(record.document_id, 'answer', e.target.value)}
+                    defaultValue={text}
                     autoSize
+                    onChange={(e) => {
+                        const newData = state.data.map((item: DataItem) => {
+                            if (generateUniqueKey(item) === generateUniqueKey(record)) {
+                                return { ...item, answer: e.target.value };
+                            }
+                            return item;
+                        });
+                        debouncedUpdate(newData);
+                    }}
                 />
             ),
         },
@@ -173,24 +322,11 @@ const DataTable: React.FC = () => {
         },
     ];
 
-    // 处理编辑
-    const handleEdit = (id: string, field: string, value: string) => {
-        const newData = state.data.map((item: DataItem) => {
-            if (item.document_id === id) {
-                return { ...item, [field]: value };
-            }
-            return item;
-        });
-        dispatch({ type: 'UPDATE_DATA', payload: newData });
-    };
-
     // 处理保存
     const handleCorrect = async (record: DataItem) => {
         try {
             const newData = state.data.map((item: DataItem) => {
-                if (item.document_id === record.document_id &&
-                    item.domain === record.domain &&
-                    item.question === record.question) {
+                if (generateUniqueKey(item) === generateUniqueKey(record)) {
                     return { ...item, status: 'correct' };
                 }
                 return item;
@@ -205,9 +341,7 @@ const DataTable: React.FC = () => {
     const handleIncorrect = async (record: DataItem) => {
         try {
             const newData = state.data.map((item: DataItem) => {
-                if (item.document_id === record.document_id &&
-                    item.domain === record.domain &&
-                    item.question === record.question) {
+                if (generateUniqueKey(item) === generateUniqueKey(record)) {
                     return { ...item, status: 'incorrect' };
                 }
                 return item;
@@ -222,45 +356,10 @@ const DataTable: React.FC = () => {
     // 标签页配置
     const items: TabsProps['items'] = domains.map((domain) => {
         const domainData = state.data.filter((item: DataItem) => item.domain === domain);
-        console.log(`${domain} 的数据条数:`, domainData.length);
-
         return {
             key: domain as string,
             label: `${domain} (${domainData.length})`,
-            children: (
-                <Table
-                    columns={columns}
-                    dataSource={domainData}
-                    rowKey={(record) => `${record.document_id}-${record.domain}-${record.question}-${Math.random()}`}
-                    loading={state.loading}
-                    rowClassName={(record: DataItem) => {
-                        if (record.status === 'correct') return 'correct-row';
-                        if (record.status === 'incorrect') return 'incorrect-row';
-                        return '';
-                    }}
-                    pagination={{
-                        ...pagination,
-                        showSizeChanger: true,
-                        showTotal: (total) => `共 ${total} 条数据`,
-                        total: domainData.length,
-                        showQuickJumper: true,
-                        showLessItems: true,
-                        onChange: (page, pageSize) => {
-                            setPagination({
-                                current: page,
-                                pageSize: pageSize,
-                            });
-                        },
-                        onShowSizeChange: (current, size) => {
-                            setPagination({
-                                current: current,
-                                pageSize: size,
-                            });
-                        },
-                    }}
-                    scroll={{ x: 2400 }}
-                />
-            ),
+            children: null
         };
     });
 
@@ -285,6 +384,21 @@ const DataTable: React.FC = () => {
         message.success('导出成功');
     };
 
+    // 清空 localStorage 数据
+    const handleClearStorage = () => {
+        try {
+            localStorage.removeItem('savedTableData');
+            // 重新加载原始数据
+            if (jsonData) {
+                dispatch({ type: 'FETCH_SUCCESS', payload: jsonData });
+            }
+            message.success('已清空本地存储数据');
+        } catch (error) {
+            console.error('清空 localStorage 失败:', error);
+            message.error('清空数据失败');
+        }
+    };
+
     return (
         <div className="data-table-container">
             <div className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
@@ -305,15 +419,74 @@ const DataTable: React.FC = () => {
                 />
             </div>
             <div className="main-content">
-                {items.find(item => item.key === activeKey)?.children}
-                <Button
-                    type="primary"
-                    icon={<ExportOutlined />}
-                    onClick={handleExport}
-                    className="export-button"
-                >
-                    导出数据
-                </Button>
+                <div style={{
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 1,
+                    backgroundColor: '#fff',
+                    padding: '16px 0',
+                    display: 'flex',
+                    gap: '8px',
+                    justifyContent: 'flex-end'
+                }}>
+                    <Button
+                        type="primary"
+                        icon={<ExportOutlined />}
+                        onClick={handleExport}
+                        className="export-button"
+                        style={{ marginRight: '8px' }}
+                    >
+                        导出数据
+                    </Button>
+                    <Button
+                        type="primary"
+                        onClick={handleSaveToStorage}
+                        style={{ marginRight: '8px' }}
+                    >
+                        保存到本地
+                    </Button>
+                    <Button
+                        type="primary"
+                        danger
+                        onClick={handleClearStorage}
+                    >
+                        清空本地数据
+                    </Button>
+                </div>
+                {activeKey && (
+                    <Table
+                        columns={columns}
+                        dataSource={state.data.filter((item: DataItem) => item.domain === activeKey)}
+                        rowKey={(record) => generateUniqueKey(record)}
+                        loading={state.loading}
+                        rowClassName={(record: DataItem) => {
+                            if (record.status === 'correct') return 'correct-row';
+                            if (record.status === 'incorrect') return 'incorrect-row';
+                            return '';
+                        }}
+                        pagination={{
+                            ...pagination,
+                            showSizeChanger: true,
+                            showTotal: (total) => `共 ${total} 条数据`,
+                            total: state.data.filter((item: DataItem) => item.domain === activeKey).length,
+                            showQuickJumper: true,
+                            showLessItems: true,
+                            onChange: (page, pageSize) => {
+                                setPagination({
+                                    current: page,
+                                    pageSize: pageSize,
+                                });
+                            },
+                            onShowSizeChange: (current, size) => {
+                                setPagination({
+                                    current: current,
+                                    pageSize: size,
+                                });
+                            },
+                        }}
+                        scroll={{ x: 2400 }}
+                    />
+                )}
             </div>
         </div>
     );
