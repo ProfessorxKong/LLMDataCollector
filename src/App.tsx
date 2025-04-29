@@ -7,11 +7,13 @@ import DataTable from './components/DataTable';
 const { Content } = Layout;
 
 interface DataItem {
-  id: string;
+  document_id: string;
   domain: string;
   question: string;
   answer: string;
-  chunk_texts: string;
+  chunk_texts: string | string[];
+  document?: string;
+  question_type?: string;
 }
 
 interface State {

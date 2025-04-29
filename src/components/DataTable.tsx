@@ -23,12 +23,12 @@ interface DataItem {
     question_type?: string;
 }
 
-interface RawDataItem {
-    domain?: string;
-    question?: string;
-    answer?: string;
-    chunk_texts?: string;
-}
+// interface RawDataItem {
+//     domain?: string;
+//     question?: string;
+//     answer?: string;
+//     chunk_texts?: string;
+// }
 
 const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
     // 提取表格内容
@@ -128,12 +128,12 @@ const DataTable: React.FC = () => {
     }, [jsonData, dispatch]);
 
     // 获取所有唯一的 domain
-    const domains = Array.from(new Set(state.data.map((item: any) => item.domain)));
+    const domains = Array.from(new Set(state.data.map((item: DataItem) => item.domain)));
     console.log('当前 domains:', domains);
     console.log('当前 state.data 总条数:', state.data.length);
     console.log('每个 domain 的数据条数:', domains.map(domain => ({
         domain,
-        count: state.data.filter((item: any) => item.domain === domain).length
+        count: state.data.filter((item: DataItem) => item.domain === domain).length
     })));
 
     // 表格列定义
@@ -143,7 +143,7 @@ const DataTable: React.FC = () => {
             dataIndex: 'question',
             key: 'question',
             width: '10%',
-            render: (text: string, record: any) => (
+            render: (text: string, record: DataItem) => (
                 <TextArea
                     value={text}
                     onChange={(e) => handleEdit(record.document_id, 'question', e.target.value)}
@@ -156,7 +156,7 @@ const DataTable: React.FC = () => {
             dataIndex: 'answer',
             key: 'answer',
             width: '20%',
-            render: (text: string, record: any) => (
+            render: (text: string, record: DataItem) => (
                 <TextArea
                     value={text}
                     onChange={(e) => handleEdit(record.document_id, 'answer', e.target.value)}
@@ -184,7 +184,7 @@ const DataTable: React.FC = () => {
             title: '操作',
             key: 'action',
             width: '5%',
-            render: (_: unknown, record: any) => (
+            render: (_: unknown, record: DataItem) => (
                 <Button type="link" onClick={() => handleSave(record)}>
                     保存
                 </Button>
@@ -194,7 +194,7 @@ const DataTable: React.FC = () => {
 
     // 处理编辑
     const handleEdit = (id: string, field: string, value: string) => {
-        const newData = state.data.map((item: any) => {
+        const newData = state.data.map((item: DataItem) => {
             if (item.document_id === id) {
                 return { ...item, [field]: value };
             }
@@ -204,7 +204,7 @@ const DataTable: React.FC = () => {
     };
 
     // 处理保存
-    const handleSave = async (record: any) => {
+    const handleSave = async (record: DataItem) => {
         try {
             // 这里添加实际的保存逻辑
             console.log('保存的数据：', record);
@@ -216,7 +216,7 @@ const DataTable: React.FC = () => {
 
     // 标签页配置
     const items: TabsProps['items'] = domains.map((domain) => {
-        const domainData = state.data.filter((item: any) => item.domain === domain);
+        const domainData = state.data.filter((item: DataItem) => item.domain === domain);
         console.log(`${domain} 的数据条数:`, domainData.length);
 
         return {
