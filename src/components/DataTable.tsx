@@ -10,6 +10,7 @@ import rehypeRaw from 'rehype-raw';
 import 'katex/dist/katex.min.css';
 import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
 import readingData from '../assets/reading_567.json';
+import '../styles/DataTable.css';
 
 const { TextArea } = Input;
 
@@ -31,7 +32,6 @@ interface DataItem {
 // }
 
 const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
-    // 提取表格内容
     const extractTableContent = (html: string) => {
         if (!html || typeof html !== 'string') {
             return '';
@@ -41,54 +41,21 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
     };
 
     return (
-        <div className="markdown-content" style={{
-            width: '100%'
-        }}>
-            <style>
-                {`
-                    .markdown-content table {
-                        border-collapse: collapse;
-                        width: 100%;
-                        margin: 8px 0;
-                        font-size: 14px;
-                    }
-                    .markdown-content th,
-                    .markdown-content td {
-                        border: 1px solid #d9d9d9;
-                        padding: 8px 12px;
-                        text-align: left;
-                        word-break: break-word;
-                    }
-                    .markdown-content th {
-                        background-color: #fafafa;
-                        font-weight: 500;
-                    }
-                    .markdown-content tr:nth-child(even) {
-                        background-color: #fafafa;
-                    }
-                    .markdown-content tr:hover {
-                        background-color: #f5f5f5;
-                    }
-                    .markdown-content table {
-                        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-                    }
-                `}
-            </style>
+        <div className="markdown-content">
             <ReactMarkdown
                 remarkPlugins={[remarkMath]}
                 rehypePlugins={[rehypeRaw, rehypeKatex]}
                 components={{
-                    // 自定义 HTML 标签的渲染
                     div: (props) => <div {...props} />,
                     table: ({ children, ...props }) => (
-                        <table {...props} style={{ ...props.style, width: '100%' }}>
+                        <table {...props} style={{ width: '100%' }}>
                             {children}
                         </table>
                     ),
                     tr: (props) => <tr {...props} />,
                     td: (props) => <td {...props} />,
                     th: ({ children, ...props }) => (
-                        <th {...props} style={{ ...props.style, backgroundColor: '#fafafa' }}>
+                        <th {...props} style={{ backgroundColor: '#fafafa' }}>
                             {children}
                         </th>
                     ),
@@ -255,21 +222,9 @@ const DataTable: React.FC = () => {
     });
 
     return (
-        <div style={{
-            display: 'flex',
-            width: '100%',
-            height: 'calc(100vh - 48px)',
-            overflow: 'hidden'
-        }}>
-            <div style={{
-                width: collapsed ? '0' : '200px',
-                borderRight: '1px solid #f0f0f0',
-                overflowY: 'auto',
-                transition: 'width 0.3s',
-                position: 'relative',
-                display: 'flex'
-            }}>
-                <div style={{ flex: 1, overflow: 'hidden' }}>
+        <div className="data-table-container">
+            <div className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+                <div className="sidebar-content">
                     <Tabs
                         items={items}
                         tabPosition="left"
@@ -282,26 +237,10 @@ const DataTable: React.FC = () => {
                     type="text"
                     icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
                     onClick={() => setCollapsed(!collapsed)}
-                    style={{
-                        position: 'fixed',
-                        left: collapsed ? '0' : '200px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        zIndex: 1,
-                        background: '#fff',
-                        border: '1px solid #f0f0f0',
-                        borderRadius: '0 4px 4px 0',
-                        padding: '4px 8px',
-                        height: 'auto',
-                        transition: 'left 0.3s'
-                    }}
+                    className={`toggle-button ${collapsed ? 'collapsed' : 'expanded'}`}
                 />
             </div>
-            <div style={{
-                flex: 1,
-                padding: '0 24px',
-                overflowY: 'auto'
-            }}>
+            <div className="main-content">
                 {items.find(item => item.key === activeKey)?.children}
             </div>
         </div>

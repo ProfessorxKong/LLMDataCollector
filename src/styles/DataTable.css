@@ -1,0 +1,91 @@
+.markdown-content {
+    width: 100%;
+}
+
+.markdown-content table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8px 0;
+    font-size: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.markdown-content th,
+.markdown-content td {
+    border: 1px solid #d9d9d9;
+    padding: 8px 12px;
+    text-align: left;
+    word-break: break-word;
+}
+
+.markdown-content th {
+    background-color: #fafafa;
+    font-weight: 500;
+}
+
+.markdown-content tr:nth-child(even) {
+    background-color: #fafafa;
+}
+
+.markdown-content tr:hover {
+    background-color: #f5f5f5;
+}
+
+.data-table-container {
+    display: flex;
+    width: 100%;
+    height: calc(100vh - 48px);
+    overflow: hidden;
+}
+
+.sidebar {
+    width: 200px;
+    border-right: 1px solid #f0f0f0;
+    overflow-y: auto;
+    transition: width 0.3s;
+    position: relative;
+    display: flex;
+}
+
+.sidebar.collapsed {
+    width: 0;
+}
+
+.sidebar-content {
+    flex: 1;
+    overflow: hidden;
+}
+
+.toggle-button {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1;
+    background: #fff;
+    border: 1px solid #f0f0f0;
+    border-radius: 0 4px 4px 0;
+    padding: 4px 8px;
+    height: auto;
+    transition: left 0.3s;
+}
+
+.toggle-button.collapsed {
+    left: 0;
+}
+
+.toggle-button.expanded {
+    left: 200px;
+}
+
+.main-content {
+    flex: 1;
+    padding: 0 24px;
+    overflow-y: auto;
+}
+
+.chunk-texts-container {
+    padding: 8px;
+    border: 1px solid #f0f0f0;
+    border-radius: 4px;
+    background-color: #fafafa;
+}
