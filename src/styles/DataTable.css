@@ -89,3 +89,19 @@
     border-radius: 4px;
     background-color: #fafafa;
 }
+
+.ant-table-tbody>tr.correct-row>td {
+    background-color: #f6ffed !important;
+}
+
+.ant-table-tbody>tr.incorrect-row>td {
+    background-color: #fff2f0 !important;
+}
+
+.export-button {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}

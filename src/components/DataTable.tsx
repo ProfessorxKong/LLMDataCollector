@@ -8,7 +8,7 @@ import rehypeKatex from 'rehype-katex';
 import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
 import 'katex/dist/katex.min.css';
-import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
+import { MenuFoldOutlined, MenuUnfoldOutlined, ExportOutlined } from '@ant-design/icons';
 import readingData from '../assets/reading_567.json';
 import '../styles/DataTable.css';
 
@@ -22,6 +22,7 @@ interface DataItem {
     chunk_texts: string | string[];
     document?: string;
     question_type?: string;
+    status?: string;
 }
 
 // interface RawDataItem {
@@ -152,9 +153,22 @@ const DataTable: React.FC = () => {
             key: 'action',
             width: '5%',
             render: (_: unknown, record: DataItem) => (
-                <Button type="link" onClick={() => handleSave(record)}>
-                    保存
-                </Button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <Button
+                        type="primary"
+                        onClick={() => handleCorrect(record)}
+                        style={{ backgroundColor: '#52c41a' }}
+                    >
+                        正确
+                    </Button>
+                    <Button
+                        type="primary"
+                        danger
+                        onClick={() => handleIncorrect(record)}
+                    >
+                        错误
+                    </Button>
+                </div>
             ),
         },
     ];
@@ -171,13 +185,37 @@ const DataTable: React.FC = () => {
     };
 
     // 处理保存
-    const handleSave = async (record: DataItem) => {
+    const handleCorrect = async (record: DataItem) => {
         try {
-            // 这里添加实际的保存逻辑
-            console.log('保存的数据：', record);
-            message.success('保存成功');
+            const newData = state.data.map((item: DataItem) => {
+                if (item.document_id === record.document_id &&
+                    item.domain === record.domain &&
+                    item.question === record.question) {
+                    return { ...item, status: 'correct' };
+                }
+                return item;
+            });
+            dispatch({ type: 'UPDATE_DATA', payload: newData });
+            message.success('已标记为正确');
         } catch {
-            message.error('保存失败');
+            message.error('操作失败');
+        }
+    };
+
+    const handleIncorrect = async (record: DataItem) => {
+        try {
+            const newData = state.data.map((item: DataItem) => {
+                if (item.document_id === record.document_id &&
+                    item.domain === record.domain &&
+                    item.question === record.question) {
+                    return { ...item, status: 'incorrect' };
+                }
+                return item;
+            });
+            dispatch({ type: 'UPDATE_DATA', payload: newData });
+            message.success('已标记为错误');
+        } catch {
+            message.error('操作失败');
         }
     };
 
@@ -193,8 +231,13 @@ const DataTable: React.FC = () => {
                 <Table
                     columns={columns}
                     dataSource={domainData}
-                    rowKey={(record) => `${record.document_id}-${record.domain}-${record.question}`}
+                    rowKey={(record) => `${record.document_id}-${record.domain}-${record.question}-${Math.random()}`}
                     loading={state.loading}
+                    rowClassName={(record: DataItem) => {
+                        if (record.status === 'correct') return 'correct-row';
+                        if (record.status === 'incorrect') return 'incorrect-row';
+                        return '';
+                    }}
                     pagination={{
                         ...pagination,
                         showSizeChanger: true,
@@ -221,6 +264,27 @@ const DataTable: React.FC = () => {
         };
     });
 
+    // 导出当前领域数据
+    const handleExport = () => {
+        if (!activeKey) {
+            message.warning('请先选择一个领域');
+            return;
+        }
+
+        const currentDomainData = state.data.filter((item: DataItem) => item.domain === activeKey);
+        const jsonString = JSON.stringify(currentDomainData, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${activeKey}_data.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        message.success('导出成功');
+    };
+
     return (
         <div className="data-table-container">
             <div className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
@@ -242,6 +306,14 @@ const DataTable: React.FC = () => {
             </div>
             <div className="main-content">
                 {items.find(item => item.key === activeKey)?.children}
+                <Button
+                    type="primary"
+                    icon={<ExportOutlined />}
+                    onClick={handleExport}
+                    className="export-button"
+                >
+                    导出数据
+                </Button>
             </div>
         </div>
     );
