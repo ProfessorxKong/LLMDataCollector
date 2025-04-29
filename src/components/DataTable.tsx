@@ -9,6 +9,7 @@ import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
 import 'katex/dist/katex.min.css';
 import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
+import readingData from '../assets/reading_567.json';
 
 const { TextArea } = Input;
 
@@ -30,6 +31,9 @@ interface RawDataItem {
 const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
     // 提取表格内容
     const extractTableContent = (html: string) => {
+        if (!html || typeof html !== 'string') {
+            return '';
+        }
         const tableMatch = html.match(/<table[^>]*>[\s\S]*?<\/table>/);
         return tableMatch ? tableMatch[0] : html;
     };
@@ -99,25 +103,19 @@ const DataTable: React.FC = () => {
     const { state, dispatch } = useContext(DataContext);
     const [activeKey, setActiveKey] = useState<string>('');
     const [collapsed, setCollapsed] = useState(false);
+    const [pagination, setPagination] = useState({
+        current: 1,
+        pageSize: 10,
+    });
 
     // 从 JSON 文件获取数据
     const { data: jsonData } = useRequest(() => {
-        return fetch('/src/assets/reading_567.json')
-            .then(response => response.json())
-            .then(data => {
-                // 转换数据格式
-                return data.map((item: RawDataItem, index: number) => ({
-                    id: String(index + 1),
-                    domain: item.domain || '未分类',
-                    question: item.question || '',
-                    answer: item.answer || '',
-                    chunk_texts: item.chunk_texts || ''
-                }));
-            });
+        return Promise.resolve(readingData);
     });
 
     useEffect(() => {
         if (jsonData) {
+            console.log('准备更新到 state 的数据:', jsonData);
             dispatch({ type: 'FETCH_SUCCESS', payload: jsonData });
             // 设置默认选中的 tab
             if (jsonData.length > 0) {
@@ -128,6 +126,8 @@ const DataTable: React.FC = () => {
 
     // 获取所有唯一的 domain
     const domains = Array.from(new Set(state.data.map((item: DataItem) => item.domain)));
+    console.log('当前 domains:', domains);
+    console.log('当前 state.data:', state.data);
 
     // 表格列定义
     const columns = [
@@ -135,7 +135,7 @@ const DataTable: React.FC = () => {
             title: '问题',
             dataIndex: 'question',
             key: 'question',
-            width: '15%',
+            width: '10%',
             render: (text: string, record: DataItem) => (
                 <TextArea
                     value={text}
@@ -148,7 +148,7 @@ const DataTable: React.FC = () => {
             title: '答案',
             dataIndex: 'answer',
             key: 'answer',
-            width: '15%',
+            width: '20%',
             render: (text: string, record: DataItem) => (
                 <TextArea
                     value={text}
@@ -208,24 +208,43 @@ const DataTable: React.FC = () => {
     };
 
     // 标签页配置
-    const items: TabsProps['items'] = domains.map((domain) => ({
-        key: domain as string,
-        label: domain as string,
-        children: (
-            <Table
-                columns={columns}
-                dataSource={state.data.filter((item: DataItem) => item.domain === domain)}
-                rowKey="id"
-                loading={state.loading}
-                pagination={{
-                    pageSize: 10,
-                    showSizeChanger: true,
-                    showTotal: (total) => `共 ${total} 条数据`
-                }}
-                scroll={{ x: 2000 }}
-            />
-        ),
-    }));
+    const items: TabsProps['items'] = domains.map((domain) => {
+        const domainData = state.data.filter((item: DataItem) => item.domain === domain);
+        console.log(`${domain} 的数据条数:`, domainData.length);
+        return {
+            key: domain as string,
+            label: `${domain} (${domainData.length})`,
+            children: (
+                <Table
+                    columns={columns}
+                    dataSource={domainData}
+                    rowKey="id"
+                    loading={state.loading}
+                    pagination={{
+                        ...pagination,
+                        showSizeChanger: true,
+                        showTotal: (total) => `共 ${total} 条数据`,
+                        total: domainData.length,
+                        showQuickJumper: true,
+                        showLessItems: true,
+                        onChange: (page, pageSize) => {
+                            setPagination({
+                                current: page,
+                                pageSize: pageSize,
+                            });
+                        },
+                        onShowSizeChange: (current, size) => {
+                            setPagination({
+                                current: current,
+                                pageSize: size,
+                            });
+                        },
+                    }}
+                    scroll={{ x: 2400 }}
+                />
+            ),
+        };
+    });
 
     return (
         <div style={{
